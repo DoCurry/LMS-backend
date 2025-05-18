@@ -22,7 +22,8 @@ namespace LMS_backend.Controllers
         private Guid GetUserIdFromClaims()
         {
             return Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        }        [HttpGet]
+        }
+        [HttpGet]
         [Authorize(Roles = "Admin,Staff")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -30,7 +31,8 @@ namespace LMS_backend.Controllers
         {
             var orders = await _orderService.GetAllOrdersAsync();
             return Ok(new { message = "All orders retrieved successfully", data = orders });
-        }        [HttpGet("{id}")]
+        }
+        [HttpGet("{id}")]
         [Authorize]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -92,8 +94,8 @@ namespace LMS_backend.Controllers
                 var userId = GetUserIdFromClaims();
                 var order = await _orderService.CreateOrderFromCartAsync(userId);
                 return CreatedAtAction(
-                    nameof(GetOrderById), 
-                    new { id = order.Id }, 
+                    nameof(GetOrderById),
+                    new { id = order.Id },
                     new { message = "Order created successfully", data = order }
                 );
             }
@@ -101,7 +103,8 @@ namespace LMS_backend.Controllers
             {
                 return BadRequest(new { message = "Failed to create order from cart", error = ex.Message });
             }
-        }        [HttpPost("{orderId}/cancel")]
+        }
+        [HttpPost("{orderId}/cancel")]
         [Authorize]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -132,7 +135,8 @@ namespace LMS_backend.Controllers
             {
                 return BadRequest(new { message = "Failed to cancel order", error = ex.Message });
             }
-        }        [HttpPost("{orderId}/complete")]
+        }
+        [HttpPost("{orderId}/complete")]
         [Authorize(Roles = "Admin,Staff")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -164,8 +168,10 @@ namespace LMS_backend.Controllers
             {
                 return BadRequest(new { message = "Failed to complete order", error = ex.Message });
             }
-        }        [HttpPost("{orderId}/ready-for-pickup")]
-        [Authorize(Roles = "Admin,Staff")]
+        }
+
+        [HttpPost("{orderId}/ready-for-pickup")]
+        [Authorize]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -174,13 +180,26 @@ namespace LMS_backend.Controllers
         {
             try
             {
-                var result = await _orderService.SetOrderReadyForPickupAsync(orderId);
-                if (!result)
+                var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+                var isAdmin = User.IsInRole("Admin");
+
+                // First get the order to check ownership
+                var order = await _orderService.GetOrderByIdAsync(orderId);
+                if (order == null)
                     return NotFound(new { message = $"Order with ID {orderId} not found" });
 
+                // Check if user is authorized (admin or order owner)
+                if (!isAdmin && order.User.Id != userId)
+                    return Forbid();
+
+                var result = await _orderService.SetOrderReadyForPickupAsync(orderId);
+                if (!result)
+                    return BadRequest(new { message = "Order could not be marked as ready for pickup" });
+
                 // Get updated order details
-                var order = await _orderService.GetOrderByIdAsync(orderId);
-                return Ok(new { message = "Order marked as ready for pickup", data = order });
+                var updatedOrder = await _orderService.GetOrderByIdAsync(orderId);
+                return Ok(new { message = "Order marked as ready for pickup", data = updatedOrder });
+
             }
             catch (Exception ex)
             {
@@ -189,7 +208,7 @@ namespace LMS_backend.Controllers
         }
 
         [HttpGet("claim/{claimCode}")]
-        [AllowAnonymous]
+        [Authorize(Roles = "Admin,Staff")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult<OrderDto>> GetOrderByClaimCode(string claimCode)

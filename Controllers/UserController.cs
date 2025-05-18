@@ -106,7 +106,8 @@ namespace LMS_backend.Controllers
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult<UserDto>> GetCurrentUser()
-        {            var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        {
+            var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
             var user = await _userService.GetUserByIdAsync(userId);
             if (user == null)
                 return NotFound(new { message = "Current user not found" });

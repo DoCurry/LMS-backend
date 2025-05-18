@@ -259,7 +259,7 @@ namespace LMS_backend.Controllers
         public async Task<ActionResult<bool>> IsBookmarkedByCurrentUser(Guid id)
         {
             try
-            {
+        {
                 var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
                 var result = await _bookService.IsBookmarkedByUserAsync(id, userId);
                 return Ok(new { message = "Bookmark status retrieved successfully", data = result });
